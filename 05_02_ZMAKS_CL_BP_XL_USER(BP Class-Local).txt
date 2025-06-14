@@ -1,0 +1,348 @@
+CLASS lhc_XLUser DEFINITION INHERITING FROM cl_abap_behavior_handler.
+  PRIVATE SECTION.
+
+    METHODS get_instance_authorizations FOR INSTANCE AUTHORIZATION
+      IMPORTING keys REQUEST requested_authorizations FOR XLUser RESULT result.
+    METHODS uploadexceldata FOR MODIFY
+      IMPORTING keys FOR ACTION XLUser~uploadexceldata RESULT result.
+
+    METHODS fillfilestatus FOR DETERMINE ON MODIFY
+      IMPORTING keys FOR XLUser~fillfilestatus.
+
+    METHODS fillselectedstatus FOR DETERMINE ON MODIFY
+      IMPORTING keys FOR XLUser~fillselectedstatus.
+
+    METHODS earlynumbering_create FOR NUMBERING
+      IMPORTING entities FOR CREATE XLUser.
+
+    METHODS: convert_date
+      IMPORTING iv_datestr     TYPE string
+      RETURNING VALUE(rv_date) TYPE zmaks_contact_m-dob.
+    METHODS: calculate_age
+      IMPORTING iv_dob        TYPE zmaks_contact_m-dob
+      RETURNING VALUE(rv_age) TYPE zmaks_contact_m-age.
+
+ENDCLASS.
+
+CLASS lhc_XLUser IMPLEMENTATION.
+
+  METHOD get_instance_authorizations.
+  ENDMETHOD.
+
+  METHOD earlynumbering_create.
+    DATA(lv_user) = cl_abap_context_info=>get_user_technical_name( ).
+    LOOP AT entities ASSIGNING FIELD-SYMBOL(<lfs_entities>).
+      APPEND CORRESPONDING #( <lfs_entities> ) TO mapped-XLUser
+          ASSIGNING FIELD-SYMBOL(<Lfs_XLUser>).
+      <lfs_XLUser>-EndUser = lv_user.
+      IF <lfs_XLUser>-FileId IS INITIAL.
+        TRY.
+            <lfs_XLUser>-FileId = cl_system_uuid=>create_uuid_x16_static( ).
+          CATCH cx_uuid_error.
+            "Do nothing Proceed to other entry
+        ENDTRY.
+      ENDIF.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD uploadExcelData.
+    DATA: lt_rows         TYPE STANDARD TABLE OF string,
+          lv_content      TYPE string,
+          lo_table_descr  TYPE REF TO cl_abap_tabledescr,
+          lo_struct_descr TYPE REF TO cl_abap_structdescr,
+          lt_excel        TYPE STANDARD TABLE OF zmaks_cl_bp_xl_user=>gty_excel_data,
+          lt_actual_data  TYPE STANDARD TABLE OF zmaks_cl_bp_xl_user=>gty_actual_data,
+          ls_actual_data  TYPE zmaks_cl_bp_xl_user=>gty_actual_data,
+          lt_data         TYPE TABLE FOR CREATE zmaks_i_excel_user\_XLData,
+          lv_index        TYPE sy-index.
+
+
+    FIELD-SYMBOLS: <lfs_XL_col_header> TYPE string,
+                   <lfs_col_header>    TYPE abap_compname.
+
+    CONSTANTS: BEGIN OF Lc_xl_col_header,
+                 first_name  TYPE abap_compname VALUE 'FIRST NAME',
+                 middle_name TYPE abap_compname VALUE 'MIDDLE NAME',
+                 last_name   TYPE abap_compname VALUE 'LAST NAME',
+                 gender      TYPE abap_compname VALUE 'GENDER',
+                 dob         TYPE abap_compname VALUE 'DATE OF BIRTH',
+                 telephone   TYPE abap_compname VALUE 'TELEPHONE',
+                 email       TYPE abap_compname VALUE 'EMAIL',
+               END OF lc_xl_col_header.
+
+    DATA(lv_user) = cl_abap_context_info=>get_user_technical_name( ).
+
+    READ ENTITIES OF zmaks_i_excel_user IN LOCAL MODE
+    ENTITY XLUser
+    ALL FIELDS WITH CORRESPONDING #( keys )
+    RESULT DATA(lt_file_entity).
+
+    DATA(lv_attachment) = lt_file_entity[ 1 ]-attachment.
+    IF lv_attachment IS INITIAL.
+      APPEND VALUE #( %tky = lt_file_entity[ 1 ]-%tky ) TO failed-XLUser.
+      APPEND VALUE #(
+        %tky = lt_file_entity[ 1 ]-%tky
+        %msg = new_message_with_text(
+                 severity = if_abap_behv_message=>severity-information
+                 text     = 'Select File to Upload' )
+      ) TO reported-XLUser.
+      RETURN.
+    ENDIF.
+
+    "Move Excel Data to Internal Table
+    DATA(lo_xlsx) = xco_cp_xlsx=>document->for_file_content(
+        iv_file_content = lv_attachment )->read_access( ).
+    DATA(lo_worksheet) = lo_xlsx->get_workbook( )->worksheet->at_position( 1 ).
+    DATA(lo_selection_pattern) = xco_cp_xlsx_selection=>pattern_builder->simple_from_to( )->get_pattern( ).
+    DATA(lo_execute) = lo_worksheet->select(
+        lo_selection_pattern )->row_stream( )->operation->write_to(
+            REF #( lt_excel ) ).
+    lo_execute->set_value_transformation(
+        xco_cp_xlsx_read_access=>value_transformation->string_value )->if_xco_xlsx_ra_operation~execute( ).
+
+    " Get number of columns in upload file for validation
+    TRY.
+        lo_table_descr ?= cl_abap_tabledescr=>describe_by_data( p_data = lt_excel ).
+        lo_struct_descr ?= lo_table_descr->get_table_line_type( ).
+        DATA(lv_no_of_cols) = lines( lo_struct_descr->components ).
+      CATCH cx_sy_move_cast_error.
+        "Implement error handling
+    ENDTRY.
+
+    CHECK lt_excel IS NOT INITIAL.
+
+    "Validate Header record
+    DATA(ls_excel) = VALUE #( lt_excel[ 1 ] OPTIONAL ).
+    IF ls_excel IS NOT INITIAL.
+      DATA(lv_has_error) = abap_false.
+      DO lv_no_of_cols TIMES.
+        lv_index = sy-index.
+        ASSIGN COMPONENT lv_index OF STRUCTURE ls_excel TO <lfs_XL_col_header>.
+        CHECK <lfs_XL_col_header> IS ASSIGNED.
+        DATA(lv_xl_value) = | { <lfs_XL_col_header> CASE = UPPER } |.
+        ASSIGN COMPONENT lv_index OF STRUCTURE lc_xl_col_header TO <lfs_col_header>.
+        CHECK <lfs_col_header> IS ASSIGNED.
+        DATA(lv_header) = | { <lfs_col_header> CASE = UPPER } |.
+        IF lv_xl_value <> lv_header.
+          lv_has_error = abap_true.
+          APPEND VALUE #( %tky = lt_file_entity[ 1 ]-%tky ) TO failed-XLUser.
+          APPEND VALUE #(
+            %tky = lt_file_entity[ 1 ]-%tky
+            %msg = new_message_with_text(
+                     severity = if_abap_behv_message=>severity-error
+                     text     = 'Wrong File Format!!' )
+          ) TO reported-XLUser.
+          UNASSIGN <lfs_col_header>.
+          EXIT.
+        ENDIF.
+        UNASSIGN <lfs_col_header>.
+      ENDDO.
+    ENDIF.
+    CHECK lv_has_error = abap_false.
+
+    "Prepare Actual Data as per Field Types
+    DELETE lt_excel INDEX 1.
+    DELETE lt_excel WHERE ( first_name IS INITIAL AND last_name IS INITIAL ).
+    TRY.
+        DATA(lv_line_id) = cl_system_uuid=>create_uuid_x16_static( ).
+      CATCH cx_uuid_error.
+    ENDTRY.
+
+    LOOP AT lt_excel INTO ls_excel.
+      CLEAR: ls_actual_data.
+      "Fill Line ID / Line Number
+      ls_actual_data-line_id = lv_line_id.
+      ls_actual_data-line_no = sy-tabix.
+      DO lv_no_of_cols TIMES.
+        lv_index = sy-index.
+        ASSIGN COMPONENT lv_index OF STRUCTURE ls_excel TO <lfs_XL_col_header>.
+        CHECK <lfs_XL_col_header> IS ASSIGNED.
+        lv_xl_value = | { <lfs_XL_col_header> } |.
+        CONDENSE lv_xl_value.
+        CASE lv_index.
+          WHEN 1. ls_actual_data-first_name   = lv_xl_value.
+          WHEN 2. ls_actual_data-middle_name  = lv_xl_value.
+          WHEN 3. ls_actual_data-last_name    = lv_xl_value.
+          WHEN 4. ls_actual_data-gender       = lv_xl_value.
+          WHEN 5.
+            ls_actual_data-dob = convert_date(  iv_datestr = lv_xl_value     ).
+            ls_actual_data-age = calculate_age( iv_dob = ls_actual_data-dob  ).
+          WHEN 6. ls_actual_data-telephone    = lv_xl_value.
+          WHEN 7. ls_actual_data-email        = lv_xl_value.
+          WHEN OTHERS.
+            EXIT.
+        ENDCASE.
+      ENDDO.
+      ls_actual_data-active = abap_true.
+      APPEND ls_actual_data TO lt_actual_data.
+    ENDLOOP.
+
+    "Prepare Data for  Child Entity (XLData)
+    lt_data = VALUE #(
+        (   %cid_ref  = keys[ 1 ]-%cid_ref
+            %is_draft = keys[ 1 ]-%is_draft
+            EndUser   = keys[ 1 ]-EndUser
+            FileId    = keys[ 1 ]-FileId
+            %target   = VALUE #(
+                FOR lwa_actual_data IN lt_actual_data (
+                    %cid         = keys[ 1 ]-%cid_ref
+                    %is_draft   = keys[ 1 ]-%is_draft
+                    %data = VALUE #(
+                        EndUser         = keys[ 1 ]-EndUser
+                        FileId          = keys[ 1 ]-FileId
+                        LineId          = lwa_actual_data-line_id
+                        LineNumber      = lwa_actual_data-line_no
+                        FirstName       = lwa_actual_data-first_name
+                        MiddleName      = lwa_actual_data-middle_name
+                        LastName        = lwa_actual_data-last_name
+                        Gender          = lwa_actual_data-gender
+                        Dob             = lwa_actual_data-dob
+                        Age             = lwa_actual_data-age
+                        Telephone       = lwa_actual_data-telephone
+                        Email           = lwa_actual_data-email
+                        Active          = lwa_actual_data-active
+                    )
+                    %control = VALUE #(
+                        EndUser         = if_abap_behv=>mk-on
+                        FileId          = if_abap_behv=>mk-on
+                        LineId          = if_abap_behv=>mk-on
+                        LineNumber      = if_abap_behv=>mk-on
+                        FirstName       = if_abap_behv=>mk-on
+                        MiddleName      = if_abap_behv=>mk-on
+                        LastName        = if_abap_behv=>mk-on
+                        Gender          = if_abap_behv=>mk-on
+                        Dob             = if_abap_behv=>mk-on
+                        Age             = if_abap_behv=>mk-on
+                        Telephone       = if_abap_behv=>mk-on
+                        Email           = if_abap_behv=>mk-on
+                        Active          = if_abap_behv=>mk-on
+                    )
+                )
+            )
+        )
+    ).
+
+    "Delete Existing entry for user if any
+    READ ENTITIES OF zmaks_i_excel_user IN LOCAL MODE
+    ENTITY XLUser BY \_XLData
+    ALL FIELDS WITH CORRESPONDING #( keys )
+    RESULT DATA(lt_existing_XLData).
+    IF lt_existing_XLData IS NOT INITIAL.
+      MODIFY ENTITIES OF zmaks_i_excel_user IN LOCAL MODE
+      ENTITY XLData DELETE FROM VALUE #(
+        FOR lwa_data IN lt_existing_XLData (
+          %key        = lwa_data-%key
+          %is_draft   = lwa_data-%is_draft
+        )
+      )
+      MAPPED DATA(lt_del_mapped)
+      REPORTED DATA(lt_del_reported)
+      FAILED DATA(lt_del_failed).
+    ENDIF.
+
+    "Add New Entry for XLData (association)
+    MODIFY ENTITIES OF zmaks_i_excel_user IN LOCAL MODE
+    ENTITY XLUser CREATE BY \_XLData
+    AUTO FILL CID WITH lt_data.
+
+    "Modify Status
+    MODIFY ENTITIES OF zmaks_i_excel_user IN LOCAL MODE
+    ENTITY XLUser
+    UPDATE FROM VALUE #(  (
+        %tky        = lt_file_entity[ 1 ]-%tky "keys[ 1 ]-%tky
+        FileStatus  = 'File Uploaded'
+        %control-FileStatus = if_abap_behv=>mk-on ) )
+    MAPPED DATA(lt_upd_mapped)
+    FAILED DATA(lt_upd_failed)
+    REPORTED DATA(lt_upd_reported).
+
+    "Read Updated Entry
+    READ ENTITIES OF zmaks_i_excel_user IN LOCAL MODE
+    ENTITY XLUser ALL FIELDS WITH CORRESPONDING #( Keys )
+    RESULT DATA(lt_updated_XLUser).
+
+    "Send Status back to front end
+    result = VALUE #(
+      FOR lwa_upd_head IN lt_updated_XLUser (
+        %tky    = lwa_upd_head-%tky
+        %param  = lwa_upd_head
+      )
+    ).
+
+  ENDMETHOD.
+
+  METHOD convert_date.
+    CHECK iv_datestr IS NOT INITIAL.
+    DATA(lv_length) = strlen( iv_datestr ).
+    CHECK lv_length >= 10.
+    rv_date = |{ iv_datestr+6(4) }{ iv_datestr+3(2) }{ iv_datestr+0(2) }|.
+  ENDMETHOD.
+
+  METHOD calculate_age.
+    DATA(lv_today) = cl_abap_context_info=>get_system_date( ).
+    DATA(lv_age) = COND #(
+     WHEN iv_dob IS INITIAL THEN 0
+     ELSE lv_today(4) - iv_dob(4) ).
+    IF lv_today+4(4) < iv_dob+4(4).
+      lv_age -= 1.
+    ENDIF.
+    rv_age = lv_age.
+  ENDMETHOD.
+
+  METHOD FillFileStatus.
+    "Read the data to be modified
+    READ ENTITIES OF zmaks_i_excel_user IN LOCAL MODE
+    ENTITY XLUser FIELDS ( EndUser FileStatus )
+    WITH CORRESPONDING #( keys )
+    RESULT DATA(lt_user).
+
+    "Update File Status
+    LOOP AT lt_user INTO DATA(ls_user).
+      MODIFY ENTITIES OF zmaks_i_excel_user IN LOCAL MODE
+      ENTITY XLUser
+      UPDATE FIELDS ( FileStatus )
+      WITH VALUE #( (
+          %tky                  = ls_user-%tky
+          %data-FileStatus      = 'File Not Selected'
+          %control-FileStatus   = if_abap_behv=>mk-on
+          ) ).
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD FillSelectedStatus.
+    "Delete XLDATA Existing (if any)
+    READ ENTITIES OF zmaks_i_excel_user IN LOCAL MODE
+    ENTITY XLUser BY \_XLData
+    ALL FIELDS WITH CORRESPONDING #( keys )
+    RESULT DATA(lt_existing_XLData).
+
+    IF lt_existing_xldata IS NOT INITIAL.
+      MODIFY ENTITIES OF zmaks_i_excel_user IN LOCAL MODE
+      ENTITY XLData DELETE FROM VALUE #(
+        FOR lwa_data IN lt_existing_XLData (
+          %key        = lwa_data-%key
+          %is_draft   = lwa_data-%is_draft ) ).
+    ENDIF.
+
+    "Read XL_Head Entities and change file status
+    READ ENTITIES OF zmaks_i_excel_user IN LOCAL MODE
+    ENTITY XLUser ALL FIELDS WITH CORRESPONDING #( keys )
+    RESULT DATA(lt_XLUser).
+
+    "Update File Status
+    LOOP AT lt_XLUser INTO DATA(ls_XLUser).
+      MODIFY ENTITIES OF zmaks_i_excel_user IN LOCAL MODE
+      ENTITY XLUser
+      UPDATE FIELDS ( FileStatus )
+      WITH VALUE #( (
+          %tky                  = ls_XLUser-%tky
+          %data-FileStatus      = COND #(
+                                    WHEN ls_XLUser-Attachment IS INITIAL
+                                    THEN 'File Not Selected'
+                                    ELSE 'File Selected' )
+          %control-FileStatus   = if_abap_behv=>mk-on
+          ) ).
+    ENDLOOP.
+  ENDMETHOD.
+
+ENDCLASS.

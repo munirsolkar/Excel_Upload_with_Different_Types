@@ -1,0 +1,2 @@
+Create ODATA UI - V4 Service Binding from 
+Service Definition ZMAKS_SD_CONTACT_UPLOAD

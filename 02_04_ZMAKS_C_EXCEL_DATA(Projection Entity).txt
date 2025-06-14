@@ -1,0 +1,24 @@
+@AccessControl.authorizationCheck: #NOT_REQUIRED
+@EndUserText.label: 'Projection - Excel Contact Data'
+@Metadata.ignorePropagatedAnnotations: true
+@Metadata.allowExtensions: true
+define view entity ZMAKS_C_EXCEL_DATA
+  as projection on ZMAKS_I_EXCEL_DATA
+{
+  key EndUser,
+  key FileId,
+  key LineId,
+  key LineNumber,
+      FirstName,
+      MiddleName,
+      LastName,
+      Gender,
+      Dob,
+      Age,
+      Telephone,
+      Email,
+      Active,
+      /* Associations */
+      _XLUser : redirected to parent ZMAKS_C_EXCEL_USER
+
+}

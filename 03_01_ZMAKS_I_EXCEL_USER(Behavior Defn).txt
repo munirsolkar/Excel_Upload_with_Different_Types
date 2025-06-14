@@ -1,0 +1,90 @@
+managed; // implementation in class zbp_maks_i_excel_user unique;
+strict ( 2 );
+with draft;
+
+define behavior for ZMAKS_I_EXCEL_USER alias XLUser
+implementation in class zmaks_cl_bp_xl_user unique
+persistent table zmaks_excel_user
+lock master
+total etag LastChangedAt
+draft table zmaks_excel_us_d
+early numbering
+authorization master ( instance )
+etag master LocalLastChangedAt
+{
+  create;
+  update;
+  delete;
+  field ( readonly ) EndUser, FileId;
+  association _XLData { create; with draft; }
+
+// Logic to read excel data into associated entity ZMAKS_I_XL_DATA
+  action uploadExcelData result [1] $self;
+  determination FillFileStatus on modify { field EndUser; }
+  determination FillSelectedStatus on modify { field Attachment; }
+
+  side effects
+  {
+    field Attachment affects $self, field FileStatus;
+    action uploadExcelData affects $self, entity _XLData, messages;
+    //determine action ChangeFileName executed on field Attachment affects $self, messages;
+  }
+  //Draft actions
+  draft action Activate optimized;
+  draft action Edit;
+  draft action Discard;
+  draft action Resume;
+  draft determine action Prepare;
+
+  mapping for zmaks_excel_user
+    {
+      EndUser            = end_user;
+      FileId             = file_id;
+      FileStatus         = file_status;
+      Attachment         = attachment;
+      Mimetype           = mimetype;
+      Filename           = filename;
+      LocalCreatedBy     = local_created_by;
+      LocalCreatedAt     = local_created_at;
+      LocalLastChangedBy = local_last_changed_by;
+      LocalLastChangedAt = local_last_changed_at;
+      LastChangedAt      = last_changed_at;
+    }
+
+
+}
+
+define behavior for ZMAKS_I_EXCEL_DATA alias XLData
+implementation in class zmaks_cl_bp_xl_data unique
+persistent table zmaks_excel_data
+draft table zmaks_excel_dt_d
+lock dependent by _XLUser
+authorization dependent by _XLUser
+//etag master <field_name>
+{
+  update;
+  delete;
+  field ( readonly ) EndUser, FileId, LineId, LineNumber,
+    FirstName, MiddleName, LastName, Gender, Dob, Age, Telephone, Email, Active;
+  association _XLUser { with draft; }
+
+  action processData result [1] $self;
+
+  mapping for zmaks_excel_data
+    {
+      EndUser       = end_user;
+      FileId        = file_id;
+      LineId        = line_id;
+      LineNumber    = line_no;
+      FirstName     = first_name;
+      MiddleName    = middle_name;
+      LastName      = last_name;
+      Gender        = gender;
+      Dob           = dob;
+      Age           = age;
+      Telephone     = telephone;
+      Email         = email;
+      Active        = active;
+    }
+
+}

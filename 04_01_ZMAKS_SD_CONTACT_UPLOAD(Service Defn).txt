@@ -1,0 +1,5 @@
+@EndUserText.label: 'SD - Contact Upload'
+define service ZMAKS_SD_CONTACT_UPLOAD {
+  expose ZMAKS_C_EXCEL_USER as XL_User;
+  expose ZMAKS_C_EXCEL_DATA as XL_Data;
+}

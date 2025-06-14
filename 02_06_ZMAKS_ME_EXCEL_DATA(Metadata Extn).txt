@@ -1,0 +1,53 @@
+@Metadata.layer: #PARTNER
+@UI.headerInfo: {
+    typeName: 'File Data',
+    typeNamePlural: 'File Data',
+    title: { type: #STANDARD, value: 'EndUser' },
+    description: { type: #STANDARD, value: 'FileId' }
+}
+annotate entity ZMAKS_C_EXCEL_DATA with
+{
+  @UI.facet: [{
+      id: 'idDetails',
+      purpose: #STANDARD,
+      position: 10,
+      label: 'Contact Details',
+      type: #IDENTIFICATION_REFERENCE
+  }]
+  @UI.hidden: true
+  @UI.lineItem: [{ type: #FOR_ACTION, label: 'Process Data', dataAction: 'processData' } ]
+  EndUser;
+  @UI.hidden: true
+  FileId;
+  @UI.lineItem: [{ position: 5, label: 'Line' }]
+  @UI.identification: [{ position: 5, label: 'Line' }]
+  LineNumber;
+  @UI.lineItem: [{ position: 10, label: 'First Name' }]
+  @UI.identification: [{ position: 20, label: 'Middle Name' }]
+  MiddleName;
+  @UI.lineItem: [{ position: 30, label: 'Last Name' }]
+  LastName;
+  @UI.lineItem: [{ position: 40, label: 'Gender' }]
+  @UI.identification: [{ position: 40, label: 'Gender' }]
+  Gender;
+  @UI.lineItem: [{ position: 50, label: 'DoB' }]
+  @UI.identification: [{ position: 50, label: 'Date of Birth' }]
+  Dob;
+  //  @UI.lineItem: [{ position: 60, label: 'Age' }]
+  @UI.identification: [{ position: 60, label: 'Age' }]
+  Age;
+  @UI.lineItem: [{ position: 70, label: 'Telephone' }]
+  @UI.identification: [{ position: 70, label: 'Telephone' }]
+  Telephone;
+  //  @UI.lineItem: [{ position: 80, label: 'Email' }]
+  @UI.identification: [{ position: 80, label: 'Email' }]
+  Email;
+  @UI.lineItem: [{ position: 90, label: 'Status' }]
+  @UI.identification: [{ position: 90, label: 'Status' }]
+  Active;
+  /* Associations */
+  @UI.hidden: true
+  _XLUser;
+
+
+}

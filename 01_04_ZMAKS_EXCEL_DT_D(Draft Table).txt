@@ -1,0 +1,23 @@
+@EndUserText.label : 'Draft table for entity ZMAKS_I_EXCEL_DATA'
+@AbapCatalog.enhancement.category : #EXTENSIBLE_ANY
+@AbapCatalog.tableCategory : #TRANSPARENT
+@AbapCatalog.deliveryClass : #A
+@AbapCatalog.dataMaintenance : #RESTRICTED
+define table zmaks_excel_dt_d {
+
+  key enduser    : syuname not null;
+  key fileid     : sysuuid_x16 not null;
+  key lineid     : sysuuid_x16 not null;
+  key linenumber : abap.numc(10) not null;
+  firstname      : abap.char(30);
+  middlename     : abap.char(30);
+  lastname       : abap.char(30);
+  gender         : zmaks_de_gender;
+  dob            : abap.dats;
+  age            : abap.numc(3);
+  telephone      : abap.numc(10);
+  email          : abap.char(80);
+  active         : abap_boolean;
+  "%admin"       : include sych_bdl_draft_admin_inc;
+
+}

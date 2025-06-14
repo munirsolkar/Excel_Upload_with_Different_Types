@@ -1,0 +1,31 @@
+CLASS zmaks_cl_bp_xl_user DEFINITION PUBLIC ABSTRACT FINAL FOR BEHAVIOR OF zmaks_i_excel_user.
+  TYPES: BEGIN OF gty_excel_data,
+           first_name  TYPE string,
+           middle_name TYPE string,
+           last_name   TYPE string,
+           gender      TYPE string,
+           dob         TYPE string,
+           telephone   TYPE string,
+           email       TYPE string,
+           line_number TYPE string, "Internal Use during Upload
+           line_id     TYPE string, "Internal Use during Upload
+         END OF gty_excel_data.
+
+  TYPES: BEGIN OF gty_actual_data,
+           first_name  TYPE zmaks_contact_m-first_name,
+           middle_name TYPE zmaks_contact_m-middle_name,
+           last_name   TYPE zmaks_contact_m-last_name,
+           gender      TYPE zmaks_contact_m-gender,
+           dob         TYPE zmaks_contact_m-dob,
+           age         TYPE zmaks_contact_m-age,
+           telephone   TYPE zmaks_contact_m-telephone,
+           email       TYPE zmaks_contact_m-email,
+           active      TYPE zmaks_contact_m-active,
+           line_id     TYPE zmaks_excel_data-line_id,
+           line_no     TYPE zmaks_excel_data-line_no,
+         END OF gty_actual_data.
+
+ENDCLASS.
+
+CLASS zmaks_cl_bp_xl_user IMPLEMENTATION.
+ENDCLASS.

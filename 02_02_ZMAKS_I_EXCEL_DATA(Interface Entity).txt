@@ -1,26 +1,31 @@
 @AbapCatalog.viewEnhancementCategory: [#NONE]
 @AccessControl.authorizationCheck: #NOT_REQUIRED
-@EndUserText.label: 'Interface - Excel User'
+@EndUserText.label: 'Interface View - Excel Data'
 @Metadata.ignorePropagatedAnnotations: true
 @ObjectModel.usageType:{
     serviceQuality: #X,
     sizeCategory: #S,
     dataClass: #MIXED
 }
-define root view entity ZMAKS_I_EXCEL_USER
-  as select from zmaks_excel_user
-  composition [0..*] of ZMAKS_I_EXCEL_DATA as _XLData
+define view entity ZMAKS_I_XL_DATA
+  as select from zmaks_excel_data
+  association to parent ZMAKS_I_XL_USER as _XLUser on  $projection.EndUser = _XLUser.EndUser
+                                                   and $projection.FileId  = _XLUser.FileId
+
 {
-  key end_user              as EndUser,
-  key file_id               as FileId,
-      file_status           as FileStatus,
-      attachment            as Attachment,
-      mimetype              as Mimetype,
-      filename              as Filename,
-      local_created_by      as LocalCreatedBy,
-      local_created_at      as LocalCreatedAt,
-      local_last_changed_by as LocalLastChangedBy,
-      local_last_changed_at as LocalLastChangedAt,
-      last_changed_at       as LastChangedAt,
-      _XLData
+  key end_user        as EndUser,
+  key file_id         as FileId,
+  key line_id         as LineId,
+  key line_no         as LineNumber,
+  first_name          as FirstName,
+  middle_name         as MiddleName
+  last_name           as LastName,
+  gender              as Gender,
+  dob                 as Dob,
+  age                 as Age,
+  telephone           as Telephone,
+  email		      as Email,
+  active              as Active,
+
+      _XLUser
 }

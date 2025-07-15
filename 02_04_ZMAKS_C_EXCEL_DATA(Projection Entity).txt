@@ -20,5 +20,4 @@ define view entity ZMAKS_C_EXCEL_DATA
       Active,
       /* Associations */
       _XLUser : redirected to parent ZMAKS_C_EXCEL_USER
-
 }

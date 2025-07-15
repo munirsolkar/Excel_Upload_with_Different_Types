@@ -17,16 +17,15 @@ define behavior for ZMAKS_C_EXCEL_USER alias XLUser
   use action Resume;
   use action Prepare;
 
-  use association _XLData { create;  }
+  use association _XLData { create; with draft; }
 }
 
 define behavior for ZMAKS_C_EXCEL_DATA alias XLData
 {
-//  use update;
-//  use delete;
+  //use update;
+  //use delete;
 
   use action processData;
 
-  use association _XLUser;
-
+  use association _XLUser { with draft; }
 }

@@ -3,17 +3,18 @@ CLASS lhc_XLUser DEFINITION INHERITING FROM cl_abap_behavior_handler.
 
     METHODS get_instance_authorizations FOR INSTANCE AUTHORIZATION
       IMPORTING keys REQUEST requested_authorizations FOR XLUser RESULT result.
-    METHODS uploadexceldata FOR MODIFY
-      IMPORTING keys FOR ACTION XLUser~uploadexceldata RESULT result.
-
-    METHODS fillfilestatus FOR DETERMINE ON MODIFY
-      IMPORTING keys FOR XLUser~fillfilestatus.
-
-    METHODS fillselectedstatus FOR DETERMINE ON MODIFY
-      IMPORTING keys FOR XLUser~fillselectedstatus.
 
     METHODS earlynumbering_create FOR NUMBERING
       IMPORTING entities FOR CREATE XLUser.
+
+    METHODS uploadExcelData FOR MODIFY
+      IMPORTING keys FOR ACTION XLUser~uploadExcelData RESULT result.
+
+    METHODS FillFileStatus FOR DETERMINE ON MODIFY
+      IMPORTING keys FOR XLUser~FillFileStatus.
+
+    METHODS FillSelectedStatus FOR DETERMINE ON MODIFY
+      IMPORTING keys FOR XLUser~FillSelectedStatus.
 
     METHODS: convert_date
       IMPORTING iv_datestr     TYPE string
@@ -268,7 +269,6 @@ CLASS lhc_XLUser IMPLEMENTATION.
         %param  = lwa_upd_head
       )
     ).
-
   ENDMETHOD.
 
   METHOD convert_date.

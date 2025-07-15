@@ -1,5 +1,5 @@
 CLASS zmaks_cl_bp_xl_user DEFINITION PUBLIC ABSTRACT FINAL FOR BEHAVIOR OF zmaks_i_excel_user.
-  TYPES: BEGIN OF gty_excel_data,
+    TYPES: BEGIN OF gty_excel_data,
            first_name  TYPE string,
            middle_name TYPE string,
            last_name   TYPE string,
@@ -24,7 +24,6 @@ CLASS zmaks_cl_bp_xl_user DEFINITION PUBLIC ABSTRACT FINAL FOR BEHAVIOR OF zmaks
            line_id     TYPE zmaks_excel_data-line_id,
            line_no     TYPE zmaks_excel_data-line_no,
          END OF gty_actual_data.
-
 ENDCLASS.
 
 CLASS zmaks_cl_bp_xl_user IMPLEMENTATION.
